@@ -1,29 +1,27 @@
 import java.io.*;
-import java.util.ArrayList;
+import java.nio.charset.StandardCharsets;
 
 import org.apache.commons.lang3.StringUtils;
 
 public class ParseWikipedia {
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         System.out.println("BEGIN");
 
         String encoding = "UTF-8";
         String line = null;
         String links[];
-        ArrayList<String> thingsToRemove = new ArrayList<>();
         double amountScanned = 0;
         long lines = 0;
         StringBuilder stringBuilder = new StringBuilder();
         boolean isAGeographyPage = false;
-        String possibleThingToRemove = null;
 
 
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream("enwiki-20180720-pages-articles1.xml-p10p30302"), encoding));
-             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("test_compressed.xml"), encoding))) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream("enwiki-20180720-pages-articles.xml"), encoding));
+             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("entire_wikipedia_compressed.xml"), encoding))) {
             //This pass will extract the titles and links from each page.
             while ((line = reader.readLine()) != null) {
 
-                amountScanned += (line.getBytes("UTF-8").length) / 1000000.0;
+                amountScanned += (line.getBytes(StandardCharsets.UTF_8).length) / 1000000.0;
 
                 if (lines++ % 1000000 == 0) {
                     System.out.println("Processed " + Double.toString(amountScanned) + " megabytes");
@@ -36,23 +34,23 @@ public class ParseWikipedia {
                         line.contains("Www.")) {
                     continue;
                 } else if (line.contains("<title>")) {
+                    if (line.contains("Category:")) isAGeographyPage = true;
+                    else if (line.contains("File:")) isAGeographyPage = true;
                     line = line.trim();
                     line = line.replace("</title>", "");
-                    possibleThingToRemove = line.substring(line.indexOf(">") + 1);
                     //System.out.println(title);
                     stringBuilder.append(line);
                     stringBuilder.append('\n');
                 } else if (line.contains("infobox") || line.contains("Infobox")){
                     if (line.contains("U.S. state")) isAGeographyPage = true;
-                    if (line.contains("country")) isAGeographyPage = true;
-                    if (line.contains("province")) isAGeographyPage = true;
-                    if (line.contains("settlement")) isAGeographyPage = true;
-                    stringBuilder.append("<infobox> ");
-                    stringBuilder.append(line);
-                    stringBuilder.append('\n');
+                    else if (line.contains("country")) isAGeographyPage = true;
+                    else if (line.contains("province")) isAGeographyPage = true;
+                    else if (line.contains("settlement")) isAGeographyPage = true;
+                    //stringBuilder.append("<infobox> ");
+                    //stringBuilder.append(line);
+                    //stringBuilder.append('\n');
                 } else if (line.contains("</page>")) {
                     if (isAGeographyPage) {
-                        thingsToRemove.add(possibleThingToRemove);
                         continue;
                     }
                     writer.write(stringBuilder.toString());
@@ -76,9 +74,11 @@ public class ParseWikipedia {
                 }
             }
         }
-        catch (StringIndexOutOfBoundsException ex) {
-            ex.printStackTrace();
+        catch (StringIndexOutOfBoundsException e) {
+            e.printStackTrace();
             System.out.println("\n" + line);
+        } catch (IOException e) {
+            e.printStackTrace();
         } finally {
             System.out.println("Processed " + Double.toString(amountScanned) + " megabytes");
         }
